@@ -30,14 +30,16 @@ app.post("/api/itinerary", async (req, res) => {
   try {
     const stream = await client.chat.stream({
       model: "mistral-small-latest",
+      responseFormat: { type: "json_object" },
       messages: [
         {
           role: "system",
           content:
             "Tu es un expert des voyages en Scandinavie et dans les pays nordiques. " +
-            "Réponds en français, de façon concise et pratique, en proposant un itinéraire " +
-            "jour par jour avec villes, activités phares, durée des trajets et une estimation " +
-            "budgétaire indicative en euros.",
+            "Réponds en français. Réponds uniquement avec un objet JSON valide, sans texte autour, " +
+            "avec exactement cette structure : " +
+            '{"titre": string, "jours": [{"jour": number, "ville": string, "pays": string, ' +
+            '"activites": [string], "conseils": string}], "budget_estime": string}.',
         },
         {
           role: "user",

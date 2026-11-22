@@ -15,7 +15,12 @@
     .pays label { display: flex; align-items: center; gap: 0.35rem; font-weight: 400; }
     button { margin-top: 0.5rem; padding: 0.6rem 1.5rem; border: none; border-radius: 6px; background: #0b3954; color: #fff; font-size: 1rem; cursor: pointer; }
     button:disabled { background: #ccc; cursor: default; }
-    pre { background: #f1f3f4; border-radius: 8px; padding: 1rem; white-space: pre-wrap; font-family: inherit; }
+    .jour-card { background: #f1f3f4; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 0.75rem; }
+    .jour-card h3 { margin: 0 0 0.5rem; color: #0b3954; }
+    .jour-card ul { margin: 0.25rem 0; padding-left: 1.25rem; }
+    .titre { font-size: 1.25rem; font-weight: 700; color: #0b3954; margin: 1rem 0 0.75rem; }
+    .budget { font-weight: 600; margin: 0.75rem 0; }
+    .error { color: #b00020; white-space: pre-wrap; }
     .hidden { display: none; }
   </style>
 </head>
@@ -47,11 +52,49 @@
     </fieldset>
     <button type="submit" id="submit">Générer l'itinéraire</button>
   </form>
-  <pre id="result" class="hidden"></pre>
+  <div id="result" class="hidden"></div>
   <script>
     const form = document.getElementById("form");
     const button = document.getElementById("submit");
     const result = document.getElementById("result");
+
+    function renderItinerary(plan) {
+      const h = document.createElement("div");
+      h.className = "titre";
+      h.textContent = plan.titre;
+      result.appendChild(h);
+      for (const jour of plan.jours) {
+        const card = document.createElement("div");
+        card.className = "jour-card";
+        const title = document.createElement("h3");
+        title.textContent = `Jour ${jour.jour} — ${jour.ville}, ${jour.pays}`;
+        card.appendChild(title);
+        const ul = document.createElement("ul");
+        for (const a of jour.activites) {
+          const li = document.createElement("li");
+          li.textContent = a;
+          ul.appendChild(li);
+        }
+        card.appendChild(ul);
+        if (jour.conseils) {
+          const p = document.createElement("p");
+          p.textContent = "💡 " + jour.conseils;
+          card.appendChild(p);
+        }
+        result.appendChild(card);
+      }
+      const budget = document.createElement("div");
+      budget.className = "budget";
+      budget.textContent = "Budget estimé : " + plan.budget_estime;
+      result.appendChild(budget);
+    }
+
+    function showError(message) {
+      const p = document.createElement("p");
+      p.className = "error";
+      p.textContent = message;
+      result.appendChild(p);
+    }
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -59,7 +102,8 @@
       if (pays.length === 0) { alert("Sélectionnez au moins un pays."); return; }
       button.disabled = true;
       result.classList.remove("hidden");
-      result.textContent = "";
+      result.replaceChildren("Génération de l'itinéraire structuré…");
+      let raw = "";
       try {
         const res = await fetch("/api/itinerary", {
           method: "POST",
@@ -91,12 +135,20 @@
             if (payload === "[DONE]") continue;
             const { content, error } = JSON.parse(payload);
             if (error) throw new Error(error);
-            result.textContent += content;
-            result.scrollTop = result.scrollHeight;
+            raw += content;
           }
         }
+        let plan;
+        try {
+          plan = JSON.parse(raw);
+        } catch {
+          throw new Error("Réponse non conforme au format JSON attendu :\n" + raw);
+        }
+        result.replaceChildren();
+        renderItinerary(plan);
       } catch (err) {
-        result.textContent += (result.textContent ? "\n\n" : "") + "Erreur : " + err.message;
+        result.replaceChildren();
+        showError("Erreur : " + err.message);
       } finally {
         button.disabled = false;
       }
